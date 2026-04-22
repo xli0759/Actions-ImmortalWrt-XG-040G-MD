@@ -89,6 +89,9 @@ jobs:
     - name: 编译 daed 及其面板 apk 安装包
       working-directory: ./openwrt
       run: |
+        make tools/install -j$(nproc)
+        make toolchain/install -j$(nproc)
+
         echo "开始编译 vmlinux-btf..."
         make package/vmlinux-btf/compile -j$(nproc) V=s
         
