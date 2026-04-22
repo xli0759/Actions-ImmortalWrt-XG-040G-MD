@@ -1,7 +1,7 @@
 name: Build daed APK Only
 
 on:
-  workflow_dispatch: # 允许手动在 Actions 页面触发
+  workflow_dispatch:
 
 env:
   REPO_URL: https://github.com/immortalwrt/immortalwrt
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: 释放磁盘空间 (Initialization environment)
+    - name: 释放磁盘空间 & 安装依赖
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
@@ -21,7 +21,7 @@ jobs:
           azure-cli google-cloud-sdk google-chrome-stable firefox powershell mono-devel
         sudo apt-get autoremove -y && sudo apt-get clean
         sudo rm -rf /usr/share/dotnet/ /usr/local/graalvm/ /usr/local/.ghcup/
-        # 安装编译依赖，包含 npm、pnpm 和 llvm (daed 刚需)
+        # 安装编译依赖，包含 npm, pnpm 和 llvm
         sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
           gettext git libncurses-dev libssl-dev python3-distutils rsync unzip zlib1g-dev \
           llvm npm
@@ -36,20 +36,24 @@ jobs:
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: 替换并拉取 QiuSimons/luci-app-daed 源码
+    - name: 拉取 daed 及 vmlinux-btf 源码
       working-directory: ./openwrt
       run: |
+        # 移除原版可能冲突的包
         rm -rf feeds/packages/net/dae
         rm -rf feeds/packages/net/daed
         rm -rf feeds/luci/applications/luci-app-dae
         rm -rf feeds/luci/applications/luci-app-daed
+        
+        # 拉取 QiuSimons 的 daed 面板核心 及 缺失的 vmlinux-btf 依赖
         git clone https://github.com/QiuSimons/luci-app-daed package/dae
+        git clone https://github.com/QiuSimons/vmlinux-btf package/vmlinux-btf
 
     - name: 生成编译配置 (.config)
       working-directory: ./openwrt
       run: |
         cat >> .config <<EOF
-        # 1. 设定路由器架构 (必须匹配目标机器)
+        # 1. 设定路由器架构 (an7581)
         CONFIG_TARGET_airoha=y
         CONFIG_TARGET_airoha_an7581=y
         CONFIG_TARGET_airoha_an7581_DEVICE_bell_xg-040g-md=y
@@ -67,7 +71,8 @@ jobs:
         CONFIG_KERNEL_XDP_SOCKETS=y
         CONFIG_PACKAGE_kmod-xdp-sockets-diag=m
         
-        # 4. 将 daed 设置为模块编译 (m 代表只编译独立包)
+        # 4. 将 daed 及 vmlinux-btf 设置为模块编译
+        CONFIG_PACKAGE_vmlinux-btf=m
         CONFIG_PACKAGE_daed=m
         CONFIG_PACKAGE_luci-app-daed=m
         CONFIG_PACKAGE_luci-i18n-daed-zh-cn=m
@@ -76,22 +81,29 @@ jobs:
 
     - name: 下载依赖源码
       working-directory: ./openwrt
-      run: make package/dae/download -j8 V=s
+      run: |
+        make package/vmlinux-btf/download -j8 V=s
+        make package/dae/daed/download -j8 V=s
+        make package/dae/luci-app-daed/download -j8 V=s
 
-    - name: 只编译 daed 及其相关依赖
+    - name: 编译 daed 及其面板 apk 安装包
       working-directory: ./openwrt
       run: |
-        echo "开始编译工具链和 daed apk 安装包..."
-        make package/dae/compile -j$(nproc) V=s
+        echo "开始编译 vmlinux-btf..."
+        make package/vmlinux-btf/compile -j$(nproc) V=s
+        
+        echo "开始编译 daed 核心..."
+        make package/dae/daed/compile -j$(nproc) V=s
+        
+        echo "开始编译 luci-app-daed 面板..."
+        make package/dae/luci-app-daed/compile -j$(nproc) V=s
 
     - name: 收集生成的 APK 文件
       working-directory: ./openwrt
       run: |
         mkdir -p ../apk_output
-        # 查找所有生成的 .apk 文件并复制出来
-        find bin/packages/ -name "*daed*.apk" -exec cp {} ../apk_output/ \;
-        find bin/packages/ -name "*dae_*.apk" -exec cp {} ../apk_output/ \;
-        find bin/targets/ -name "*xdp-sockets*.apk" -exec cp {} ../apk_output/ \;
+        # 直接查找 bin 目录下所有刚编译出来的 apk 文件
+        find bin/ -name "*.apk" -exec cp {} ../apk_output/ \;
 
     - name: 上传 APK 供下载
       uses: actions/upload-artifact@v4
