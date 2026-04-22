@@ -53,30 +53,22 @@ sed -i '/CONFIG_PACKAGE_luci-app-wol/d' .config
 sed -i 's/CONFIG_PACKAGE_wakeonlan=y/# CONFIG_PACKAGE_wakeonlan is not set/' .config
 sed -i 's/CONFIG_PACKAGE_etherwake=y/# CONFIG_PACKAGE_etherwake is not set/' .config
 
-# ---------------------------------------------------
-# 1~5 步移除 Node.js、Passwall、NAS 等代码保持不变...
-# ---------------------------------------------------
+# 6. 【核心】配置 eBPF 选项并启用官方自带的 daed
+echo "处理 daed 及其内核依赖..."
 
-# 6. 【核心】处理 daed
-echo "处理 daed..."
+# 关闭会导致 BTF 丢失的精简 debug info（非常关键，否则 daed 会被静默删除！）
+sed -i 's/CONFIG_KERNEL_DEBUG_INFO_REDUCED=y/# CONFIG_KERNEL_DEBUG_INFO_REDUCED is not set/' .config
 
-# 删除官方旧版/冲突的 dae 和 daed 源码
-rm -rf feeds/packages/net/dae
-rm -rf feeds/packages/net/daed
-rm -rf feeds/luci/applications/luci-app-dae
-rm -rf feeds/luci/applications/luci-app-daed
-
-# 拉取 sbwml 优化的 daed 源码（自带预编译面板，彻底摆脱 Node.js 依赖）
-git clone https://github.com/sbwml/luci-app-daed package/daed
-
-# 写入 daed 的配置以及开启必需的内核 eBPF 选项
 cat >> .config <<EOF
+# 开启内核 eBPF 及 BTF 支持 (daed 刚需)
 CONFIG_DEVEL=y
 CONFIG_BPF_TOOLCHAIN=y
 CONFIG_KERNEL_BPF_EVENTS=y
 CONFIG_KERNEL_CGROUP_BPF=y
 CONFIG_KERNEL_DEBUG_INFO=y
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
+
+# 启用 ImmortalWrt 官方源自带的 daed 及其面板
 CONFIG_PACKAGE_daed=y
 CONFIG_PACKAGE_luci-app-daed=y
 CONFIG_PACKAGE_luci-i18n-daed-zh-cn=y
