@@ -54,30 +54,29 @@ sed -i 's/CONFIG_PACKAGE_wakeonlan=y/# CONFIG_PACKAGE_wakeonlan is not set/' .co
 sed -i 's/CONFIG_PACKAGE_etherwake=y/# CONFIG_PACKAGE_etherwake is not set/' .config
 
 # ---------------------------------------------------
-# 之前的移除冗余插件的代码保留...
-# ...
+# 1~5 步移除 Node.js、Passwall、NAS 等代码保持不变...
 # ---------------------------------------------------
 
-# 1. 移除源码自带的旧版 dae/daed（如果有的话，防止冲突）
+# 6. 【核心】处理 daed
+echo "处理 daed..."
+
+# 删除官方旧版/冲突的 dae 和 daed 源码
 rm -rf feeds/packages/net/dae
 rm -rf feeds/packages/net/daed
+rm -rf feeds/luci/applications/luci-app-dae
 rm -rf feeds/luci/applications/luci-app-daed
 
-# 2. 拉取 daeuniverse 的官方 OpenWrt 适配仓库（包含 daed 及 luci 面板）
-git clone --depth=1 https://github.com/daeuniverse/dae-openwrt.git package/dae-openwrt
+# 拉取 sbwml 优化的 daed 源码（自带预编译面板，彻底摆脱 Node.js 依赖）
+git clone https://github.com/sbwml/luci-app-daed package/daed
 
-# 3. 写入 daed 的配置
-echo "添加 daed..."
+# 写入 daed 的配置以及开启必需的内核 eBPF 选项
 cat >> .config <<EOF
-# 开启 eBPF 相关内核选项 (daed 必需)
 CONFIG_DEVEL=y
 CONFIG_BPF_TOOLCHAIN=y
 CONFIG_KERNEL_BPF_EVENTS=y
 CONFIG_KERNEL_CGROUP_BPF=y
 CONFIG_KERNEL_DEBUG_INFO=y
 CONFIG_KERNEL_DEBUG_INFO_BTF=y
-
-# 编译 daed 及 LuCI 面板
 CONFIG_PACKAGE_daed=y
 CONFIG_PACKAGE_luci-app-daed=y
 CONFIG_PACKAGE_luci-i18n-daed-zh-cn=y
