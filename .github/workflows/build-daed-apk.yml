@@ -1,0 +1,100 @@
+name: Build daed APK Only
+
+on:
+  workflow_dispatch: # 允许手动在 Actions 页面触发
+
+env:
+  REPO_URL: https://github.com/immortalwrt/immortalwrt
+  REPO_BRANCH: master
+
+jobs:
+  build_apk:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: 释放磁盘空间 (Initialization environment)
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo apt-get update
+        sudo apt-get remove -y '^dotnet-.*' '^llvm-.*' 'php.*' '^mongodb-.*' '^mysql-.*' \
+          azure-cli google-cloud-sdk google-chrome-stable firefox powershell mono-devel
+        sudo apt-get autoremove -y && sudo apt-get clean
+        sudo rm -rf /usr/share/dotnet/ /usr/local/graalvm/ /usr/local/.ghcup/
+        # 安装编译依赖，包含 npm、pnpm 和 llvm (daed 刚需)
+        sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib g++-multilib \
+          gettext git libncurses-dev libssl-dev python3-distutils rsync unzip zlib1g-dev \
+          llvm npm
+        sudo npm install -g pnpm
+
+    - name: 克隆 ImmortalWrt 源码
+      run: git clone $REPO_URL -b $REPO_BRANCH openwrt
+
+    - name: 更新并安装 feeds 软件源
+      working-directory: ./openwrt
+      run: |
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: 替换并拉取 QiuSimons/luci-app-daed 源码
+      working-directory: ./openwrt
+      run: |
+        rm -rf feeds/packages/net/dae
+        rm -rf feeds/packages/net/daed
+        rm -rf feeds/luci/applications/luci-app-dae
+        rm -rf feeds/luci/applications/luci-app-daed
+        git clone https://github.com/QiuSimons/luci-app-daed package/dae
+
+    - name: 生成编译配置 (.config)
+      working-directory: ./openwrt
+      run: |
+        cat >> .config <<EOF
+        # 1. 设定路由器架构 (必须匹配目标机器)
+        CONFIG_TARGET_airoha=y
+        CONFIG_TARGET_airoha_an7581=y
+        CONFIG_TARGET_airoha_an7581_DEVICE_bell_xg-040g-md=y
+        
+        # 2. 启用 APK 打包机制
+        CONFIG_USE_APK=y
+        
+        # 3. 开启内核 eBPF 及 BTF 依赖
+        CONFIG_DEVEL=y
+        CONFIG_BPF_TOOLCHAIN_HOST=y
+        CONFIG_KERNEL_BPF_EVENTS=y
+        CONFIG_KERNEL_CGROUP_BPF=y
+        CONFIG_KERNEL_DEBUG_INFO=y
+        CONFIG_KERNEL_DEBUG_INFO_BTF=y
+        CONFIG_KERNEL_XDP_SOCKETS=y
+        CONFIG_PACKAGE_kmod-xdp-sockets-diag=m
+        
+        # 4. 将 daed 设置为模块编译 (m 代表只编译独立包)
+        CONFIG_PACKAGE_daed=m
+        CONFIG_PACKAGE_luci-app-daed=m
+        CONFIG_PACKAGE_luci-i18n-daed-zh-cn=m
+        EOF
+        make defconfig
+
+    - name: 下载依赖源码
+      working-directory: ./openwrt
+      run: make package/dae/download -j8 V=s
+
+    - name: 只编译 daed 及其相关依赖
+      working-directory: ./openwrt
+      run: |
+        echo "开始编译工具链和 daed apk 安装包..."
+        make package/dae/compile -j$(nproc) V=s
+
+    - name: 收集生成的 APK 文件
+      working-directory: ./openwrt
+      run: |
+        mkdir -p ../apk_output
+        # 查找所有生成的 .apk 文件并复制出来
+        find bin/packages/ -name "*daed*.apk" -exec cp {} ../apk_output/ \;
+        find bin/packages/ -name "*dae_*.apk" -exec cp {} ../apk_output/ \;
+        find bin/targets/ -name "*xdp-sockets*.apk" -exec cp {} ../apk_output/ \;
+
+    - name: 上传 APK 供下载
+      uses: actions/upload-artifact@v4
+      with:
+        name: daed-apk-packages
+        path: ./apk_output/*.apk
