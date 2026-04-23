@@ -116,7 +116,12 @@ sed -i 's/CONFIG_PACKAGE_etherwake=y/# CONFIG_PACKAGE_etherwake is not set/' .co
 # 针对 QiuSimons/luci-app-daed 的核心处理逻辑
 # =====================================================
 
-# 6. 安装前端构建工具 pnpm（官方 README 要求，编译面板需要）
+# 6. 安装 Node.js 和 pnpm（编译 daed 前端面板需要）
+if ! command -v node &>/dev/null; then
+    echo "Node.js 未找到，正在安装..."
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+fi
 npm install -g pnpm
 
 # 7. 清理官方 feeds 中旧的或冲突的 dae/daed 组件
