@@ -110,6 +110,14 @@ jobs:
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
 
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 'lts/*'
+      
+    - name: Install pnpm
+      run: npm install -g pnpm
+
     - name: Load custom configuration
       run: |
         [ -e files ] && mv files openwrt/files
