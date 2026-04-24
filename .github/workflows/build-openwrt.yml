@@ -140,7 +140,19 @@ jobs:
       uses: P3TERX/ssh2actions@main
       if: env.SSH_ACTIONS == 'true'
 
+    - name: Generate diffconfig (Optional)
+      run: |
+        cd openwrt
+        ./scripts/diffconfig.sh > seed.config
 
+    - name: Upload Config
+      uses: actions/upload-artifact@v4
+      with:
+        name: My_OpenWrt_Config
+        path: |
+          openwrt/.config
+          openwrt/seed.config
+          
     - name: Download package
       id: package
       run: |
