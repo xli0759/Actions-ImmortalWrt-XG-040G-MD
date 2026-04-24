@@ -110,7 +110,16 @@ jobs:
 
     - name: Install feeds
       run: cd openwrt && ./scripts/feeds install -a
-
+    
+    - name: Install Clang and LLVM (Version 15)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y clang-15 llvm-15
+        # 创建软链接，让系统默认使用 15 版本
+        sudo ln -sf /usr/bin/clang-15 /usr/bin/clang
+        sudo ln -sf /usr/bin/llvm-strip-15 /usr/bin/llvm-strip
+        sudo ln -sf /usr/bin/llvm-objdump-15 /usr/bin/llvm-objdump
+        
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
