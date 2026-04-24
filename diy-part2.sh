@@ -20,9 +20,9 @@ sed -i 's/192.168.1.1/10.1.1.1/g' package/base-files/files/bin/config_generate
 # =====================================================
 # 2. 清理官方 feeds 中自带的、可能冲突的 dae/daed 组件
 # =====================================================
-echo "2. 清理旧版 dae/daed 组件..."
-rm -rf feeds/packages/net/dae*
-rm -rf feeds/luci/applications/luci-app-dae*
+# echo "2. 清理旧版 dae/daed 组件..."
+# rm -rf feeds/packages/net/dae*
+# rm -rf feeds/luci/applications/luci-app-dae*
 
 # =====================================================
 # 3. 拉取最新的 QiuSimons/luci-app-daed 源码
