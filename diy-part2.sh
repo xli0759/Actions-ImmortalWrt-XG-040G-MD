@@ -28,7 +28,7 @@ rm -rf feeds/luci/applications/luci-app-dae*
 # 3. 拉取最新的 QiuSimons/luci-app-daed 源码
 # =====================================================
 echo "3. 拉取最新的 daed 源码..."
-git clone https://github.com/QiuSimons/luci-app-daed package/dae
+git clone https://github.com/xli0759/luci-app-daed package/dae
 
 # =====================================================
 # 4. 动态注入 daed 所需的 eBPF 及内核参数
