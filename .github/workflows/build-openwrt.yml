@@ -33,7 +33,7 @@ env:
   UPLOAD_FIRMWARE: true
   UPLOAD_RELEASE: true
   TZ: Asia/Shanghai
-  SSH_ACTIONS: true # 默认开启 SSH，方便你连接执行手动编译
+  SSH_ACTIONS: false # 默认开启 SSH，方便你连接执行手动编译
 
 jobs:
   build:
@@ -122,19 +122,6 @@ jobs:
     - name: SSH connection to Actions
       uses: P3TERX/ssh2actions@main
       if: env.SSH_ACTIONS == 'true'
-
-    - name: Generate diffconfig (Optional)
-      run: |
-        cd openwrt
-        ./scripts/diffconfig.sh > seed.config
-
-    - name: Upload Config
-      uses: actions/upload-artifact@v4
-      with:
-        name: My_OpenWrt_Config
-        path: |
-          openwrt/.config
-          openwrt/seed.config
           
     - name: Download package
       id: package
