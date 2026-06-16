@@ -11,4 +11,4 @@
 #
 # Uncomment a feed source
 # sed -i 's/^#\(.*helloworld\)/\1/' feeds.conf.default
-
+sed -i '/an7581-evb-emmc-eagle/d' target/linux/airoha/image/Makefile
